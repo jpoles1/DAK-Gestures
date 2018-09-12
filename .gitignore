@@ -5,3 +5,4 @@
 .vscode/launch.json
 .travis.yml
 .vscode
+config.h
