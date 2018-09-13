@@ -11,10 +11,10 @@ using namespace std;
 #include "config.h"
 
 // Pins
-#define APDS9960_SDA D1
-#define APDS9960_SCL D2
-#define APDS9960_INT D3
-#define ERROR_LED_PIN D4
+#define APDS9960_SDA D2
+#define APDS9960_SCL D3
+#define APDS9960_INT D4
+#define ERROR_LED_PIN D6
 
 // Global Variables
 SparkFun_APDS9960 apds = SparkFun_APDS9960();
@@ -51,23 +51,23 @@ void deviceCommandRequest(String device, String fname, String val){
 }
 
 void wifiCheck(){
-    Serial.print("Connecting to WiFi...");
+    if(WiFi.status() != WL_CONNECTED){
+        Serial.print("Connecting to WiFi...");
+    }
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
         Serial.print(".");
     }
     Serial.println("");
+    digitalWrite(ERROR_LED_PIN, LOW);
 }
 
 void sendPowerCommands(String powerSetting) {
-    WiFi.begin(AP_SSID, AP_PASSWORD);
-    wifiCheck();
     deviceCommandRequest("1", "power", powerSetting);
     deviceCommandRequest("2", "power", powerSetting);
     deviceCommandRequest("3", "power", powerSetting);
     deviceCommandRequest("4", "power", powerSetting);
     deviceCommandRequest("lightswitch", "power", powerSetting);
-    WiFi.disconnect();
 }
 
 void handleGesture() {
@@ -127,6 +127,8 @@ void setup() {
     } else {
         Serial.println(F("Something went wrong during gesture sensor init!"));
     }
+    WiFi.begin(AP_SSID, AP_PASSWORD);
+    wifiCheck();
 }
 
 void loop() {
