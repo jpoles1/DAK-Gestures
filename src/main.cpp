@@ -2,6 +2,7 @@
 using namespace std;
 
 #include <Arduino.h>
+#include <Servo.h>
 #include <Wire.h>
 #include <SparkFun_APDS9960.h>
 #include "ESP8266WiFi.h"
@@ -14,11 +15,49 @@ using namespace std;
 #define APDS9960_SDA D2
 #define APDS9960_SCL D3
 #define APDS9960_INT D4
+
+#define SERVO_PIN D8
 #define ERROR_LED_PIN D6
 
 // Global Variables
 SparkFun_APDS9960 apds = SparkFun_APDS9960();
+Servo switchServo;
 int isr_flag = 0;
+
+int pos = 0;
+const int offPosition = 10;
+const int neutralPosition = 60;
+const int onPosition = 100;
+void switchNeutral(){
+    switchServo.attach(SERVO_PIN);
+    switchServo.write(neutralPosition);
+    delay(500);
+    switchServo.detach();
+}
+void switchOn(){
+    switchServo.attach(SERVO_PIN);
+    for(pos = neutralPosition; pos < onPosition; pos += 1){
+        switchServo.write(pos);
+        delay(15);
+    }
+    for(pos = onPosition; pos>=neutralPosition; pos-=1){                                
+        switchServo.write(pos);
+        delay(15);
+    } 
+    switchServo.detach();
+}
+void switchOff(){
+    switchServo.attach(SERVO_PIN);
+    for(pos = neutralPosition; pos>=offPosition; pos-=1){                                
+        switchServo.write(pos);
+        delay(15);
+    }
+    for(pos = offPosition; pos < neutralPosition; pos += 1){
+        switchServo.write(pos);
+        delay(15);
+    }
+    switchServo.detach();
+}
 
 void interruptRoutine() {
     isr_flag = 1;
@@ -82,10 +121,12 @@ void handleGesture() {
         case DIR_LEFT:
             Serial.println("LEFT");
             sendPowerCommands("on");
+            switchOn();
             break;
         case DIR_RIGHT:
             Serial.println("RIGHT");
             sendPowerCommands("off");
+            switchOff();
             break;
         case DIR_NEAR:
             Serial.println("NEAR");
@@ -101,6 +142,8 @@ void handleGesture() {
 
 void setup() {
     Serial.begin(115200);
+
+    switchNeutral();
 
     pinMode(ERROR_LED_PIN, OUTPUT);
     digitalWrite(ERROR_LED_PIN, HIGH);
