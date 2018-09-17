@@ -1,0 +1,7 @@
+//Wifi Settings
+const char* AP_SSID = "MolePeople";
+const char* AP_PASSWORD = "deepEarth!";
+
+//Server Settings
+const char* SERVER_URL = "http://alexawatch.herokuapp.com/api";
+const char* SERVER_KEY = "dakWatch";

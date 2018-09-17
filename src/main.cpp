@@ -7,6 +7,7 @@ using namespace std;
 #include <SparkFun_APDS9960.h>
 #include "ESP8266WiFi.h"
 #include <esp8266httpclient.h>
+#include <WebSocketClient.h>
 
 //Private Config
 #include "config.h"
@@ -21,6 +22,8 @@ using namespace std;
 
 // Global Variables
 SparkFun_APDS9960 apds = SparkFun_APDS9960();
+WebSocketClient webSocketClient;
+WiFiClient client;
 Servo switchServo;
 int isr_flag = 0;
 
@@ -100,13 +103,27 @@ void wifiCheck(){
     Serial.println("");
     digitalWrite(ERROR_LED_PIN, LOW);
 }
+void websocketLoad() {
+    if (client.connect(WEBSOCKET_URL, 80)) {
+        Serial.println("Connected");
+    } else {
+        Serial.println("Connection failed.");
+    }
+    
+    webSocketClient.path = "/";
+    webSocketClient.host = strdup(WEBSOCKET_URL);
+    if (webSocketClient.handshake(client)) {
+        Serial.println("Handshake successful");
+    } else {
+        Serial.println("Handshake failed.");
+    }
+}
 
 void sendPowerCommands(String powerSetting) {
     deviceCommandRequest("1", "power", powerSetting);
     deviceCommandRequest("2", "power", powerSetting);
     deviceCommandRequest("3", "power", powerSetting);
     deviceCommandRequest("4", "power", powerSetting);
-    deviceCommandRequest("lightswitch", "power", powerSetting);
 }
 
 void handleGesture() {
@@ -171,14 +188,55 @@ void setup() {
         Serial.println(F("Something went wrong during gesture sensor init!"));
     }
     WiFi.begin(AP_SSID, AP_PASSWORD);
-    wifiCheck();
+    wifiCheck();    
+    websocketLoad();
 }
 
+std::vector<String> splitStringToVector(String msg, char delim){
+  std::vector<String> subStrings;
+  int j=0;
+  for(int i =0; i < msg.length(); i++){
+    if(msg.charAt(i) == delim){
+      subStrings.push_back(msg.substring(j,i));
+      j = i+1;
+    }
+  }
+  subStrings.push_back(msg.substring(j,msg.length())); //to grab the last value of the string
+  return subStrings;
+}
+
+String data;
 void loop() {
+
     if( isr_flag == 1 ) {
         detachInterrupt(APDS9960_INT);
         handleGesture();
         isr_flag = 0;
         attachInterrupt(APDS9960_INT, interruptRoutine, FALLING);
     }
+    if (client.connected()) {
+        webSocketClient.getData(data);
+        if (data.length() > 0) {
+            Serial.print("Received data: ");
+            Serial.println(data);
+            std::vector<String> split_string = splitStringToVector(data.c_str(), ':');
+            String msgType = split_string[0];
+            String deviceName = split_string[1];
+            String fname = split_string[2];
+            String command = split_string[3];
+            if(deviceName == "lightswitch" && fname == "power"){
+                if(command == "off"){
+                    switchOff();
+                }
+                if(command == "on"){
+                    switchOn();
+                }
+            }
+        }
+        data = "";
+    } else {
+        Serial.println("Client disconnected.");
+        websocketLoad();
+    }
+
 }
